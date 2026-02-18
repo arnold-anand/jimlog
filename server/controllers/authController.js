@@ -8,7 +8,8 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = req.body.email.toLowerCase();
     console.log(`[DEBUG] registerUser hit for email: ${email}`);
 
     const userExists = await User.findOne({ email });
@@ -50,7 +51,8 @@ const registerUser = asyncHandler(async (req, res) => {
 // @route   POST /auth/login
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email.toLowerCase();
 
     const user = await User.findOne({ email });
 

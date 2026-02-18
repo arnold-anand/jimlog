@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -35,6 +36,8 @@ export default function RegisterPage() {
     const router = useRouter();
     const setAuth = useAuthStore((state) => state.setAuth);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -49,24 +52,27 @@ export default function RegisterPage() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setLoading(true);
         try {
-            const { data } = await axios.post('/auth/register', {
+            // Normalize email
+            const payload = {
                 name: values.name,
-                email: values.email,
+                email: values.email.toLowerCase().trim(),
                 password: values.password,
-            });
+            };
+            const { data } = await axios.post('/auth/register', payload);
             setAuth(data, data.accessToken);
             router.push('/dashboard');
         } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Registration failed');
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-background">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle>Create an Account</CardTitle>
+        <div className="flex items-center justify-center min-h-screen bg-background p-4">
+            <Card className="w-full max-w-md border-primary/10 bg-card/50 backdrop-blur-sm">
+                <CardHeader className="space-y-1">
+                    <CardTitle className="text-2xl font-black text-foreground">Create an Account</CardTitle>
                     <CardDescription>Get started with your fitness journey</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -79,7 +85,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter your full name" {...field} />
+                                            <Input placeholder="Enter your full name" {...field} className="bg-background" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -92,7 +98,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter your email" {...field} />
+                                            <Input placeholder="Enter your email" {...field} className="bg-background" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -105,7 +111,25 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Password</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Create a password" {...field} />
+                                            <div className="relative">
+                                                <Input
+                                                    type={showPassword ? "text" : "password"}
+                                                    placeholder="Create a password"
+                                                    {...field}
+                                                    className="bg-background pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                >
+                                                    {showPassword ? (
+                                                        <EyeOff className="h-4 w-4" />
+                                                    ) : (
+                                                        <Eye className="h-4 w-4" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -118,20 +142,38 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Confirm Password</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Confirm your password" {...field} />
+                                            <div className="relative">
+                                                <Input
+                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    placeholder="Confirm your password"
+                                                    {...field}
+                                                    className="bg-background pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                >
+                                                    {showConfirmPassword ? (
+                                                        <EyeOff className="h-4 w-4" />
+                                                    ) : (
+                                                        <Eye className="h-4 w-4" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <Button type="submit" className="w-full" disabled={loading}>
+                            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold" disabled={loading}>
                                 {loading ? 'Creating account...' : 'Register'}
                             </Button>
                         </form>
                     </Form>
-                    <div className="mt-4 text-center text-sm">
+                    <div className="mt-4 text-center text-sm text-muted-foreground font-medium">
                         Already have an account?{' '}
-                        <Link href="/login" className="text-orange-500 hover:underline">
+                        <Link href="/login" className="text-primary hover:underline font-bold">
                             Login
                         </Link>
                     </div>
