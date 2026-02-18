@@ -4,14 +4,21 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
+import axios from '@/lib/axios';
 
 export default function Header() {
     const logout = useAuthStore((state) => state.logout);
     const router = useRouter();
 
-    const handleLogout = () => {
-        logout();
-        router.push('/login');
+    const handleLogout = async () => {
+        try {
+            await axios.post('/auth/logout');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        } finally {
+            logout();
+            router.push('/login');
+        }
     };
 
     return (
