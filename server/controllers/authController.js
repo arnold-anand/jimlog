@@ -8,7 +8,7 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
     console.log(`[DEBUG] registerUser hit for email: ${email}`);
 
     const userExists = await User.findOne({ email });
@@ -19,6 +19,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.create({
+        name,
         email,
         password,
     });
@@ -88,27 +89,30 @@ const refresh = asyncHandler(async (req, res) => {
 
     const refreshToken = cookies.jwt;
 
-    jwt.verify(
-        refreshToken,
-        process.env.REFRESH_TOKEN_SECRET,
-        async (err, decoded) => {
-            if (err) {
-                res.status(403);
-                throw new Error('Forbidden');
-            }
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const foundUser = await User.findById(decoded.id);
 
-            const foundUser = await User.findById(decoded.id);
-
-            if (!foundUser) {
-                res.status(401);
-                throw new Error('Unauthorized');
-            }
-
-            const accessToken = generateToken(foundUser._id);
-
-            res.json({ accessToken });
+        if (!foundUser) {
+            res.status(401);
+            throw new Error('Unauthorized');
         }
-    );
+
+        const accessToken = generateToken(foundUser._id);
+
+        res.json({
+            accessToken,
+            user: {
+                _id: foundUser._id,
+                email: foundUser.email,
+                name: foundUser.name,
+                nutritionProfile: foundUser.nutritionProfile
+            }
+        });
+    } catch (err) {
+        res.status(403);
+        throw new Error('Forbidden');
+    }
 });
 
 // @desc    Logout user
@@ -122,9 +126,63 @@ const logout = (req, res) => {
     res.json({ message: 'Cookie cleared' });
 };
 
+// @desc    Get current user profile
+// @route   GET /auth/me
+// @access  Private
+const getMe = asyncHandler(async (req, res) => {
+    if (!req.user) {
+        res.status(401);
+        throw new Error('Not authorized, user not found');
+    }
+    const user = await User.findById(req.user._id).select('-password');
+    if (user) {
+        res.json({
+            _id: user._id,
+            name: user.name || 'Anonymous',
+            email: user.email,
+            nutritionProfile: user.nutritionProfile,
+        });
+    } else {
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+        user.name = req.body.name || user.name;
+
+        if (req.body.nutritionProfile) {
+            user.nutritionProfile = {
+                ...user.nutritionProfile,
+                ...req.body.nutritionProfile
+            };
+        }
+
+        const updatedUser = await user.save();
+
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name || 'Anonymous',
+            email: updatedUser.email,
+            nutritionProfile: updatedUser.nutritionProfile,
+        });
+    } else {
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
 module.exports = {
     registerUser,
     loginUser,
     refresh,
     logout,
+    getMe,
+    updateProfile,
 };

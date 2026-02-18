@@ -1,5 +1,6 @@
-const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config();
+const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -7,8 +8,6 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const { protect } = require('./middleware/authMiddleware');
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001; // Changed from 5000 to avoid macOS AirPlay conflict
@@ -46,17 +45,6 @@ app.use((req, res, next) => {
 // Database Connection
 connectDB();
 
-// Error Handler Middleware
-app.use((err, req, res, next) => {
-    const statusCode = res.statusCode ? res.statusCode : 500;
-    res.status(statusCode);
-    console.error('[ERROR]', err.message, err.stack);
-    res.json({
-        message: err.message,
-        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-    });
-});
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/exercises', require('./routes/exerciseRoutes'));
@@ -67,6 +55,17 @@ app.use('/api/nutrition', require('./routes/nutritionRoutes'));
 
 app.get('/', (req, res) => {
     res.send('Gym Tracker API Running');
+});
+
+// Error Handler Middleware (MUST be last)
+app.use((err, req, res, next) => {
+    const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+    res.status(statusCode);
+    console.error('[ERROR]', err.message, err.stack);
+    res.json({
+        message: err.message,
+        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    });
 });
 
 app.listen(PORT, () => {

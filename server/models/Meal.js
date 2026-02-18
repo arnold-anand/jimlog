@@ -31,6 +31,25 @@ const mealSchema = mongoose.Schema(
             type: Number,
             default: 0
         },
+        items: [
+            {
+                name: String,
+                amount: String,
+                calories: Number,
+                protein: Number,
+                carbs: Number,
+                fat: Number,
+                fiber: Number
+            }
+        ],
+        mealType: {
+            type: String,
+            required: true,
+            enum: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
+        },
+        time: {
+            type: String,
+        },
         date: {
             type: Date,
             default: Date.now

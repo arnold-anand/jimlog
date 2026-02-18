@@ -12,7 +12,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold">Hello, {user?.email?.split('@')[0]} 👋</h2>
+                <h2 className="text-2xl font-bold">Hello, {user?.name || 'Anonymous'} 👋</h2>
                 <p className="text-gray-500">Ready to crush your workout?</p>
             </div>
 

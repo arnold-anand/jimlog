@@ -10,11 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Utensils, Zap, Plus, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import Link from 'next/link';
 
 export default function NutritionPage() {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [mealText, setMealText] = useState('');
+    const [mealType, setMealType] = useState('Breakfast');
+    const [mealTime, setMealTime] = useState('');
     const [logging, setLogging] = useState(false);
     const [dailyStats, setDailyStats] = useState<any>(null);
 
@@ -57,7 +60,8 @@ export default function NutritionPage() {
             });
             setProfile(data.nutritionProfile);
             fetchDaily(); // Refresh targets
-        } catch (error) {
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to save profile');
         }
     };
 
@@ -67,10 +71,17 @@ export default function NutritionPage() {
 
         setLogging(true);
         try {
-            await axios.post('/nutrition/meals', { text: mealText });
+            await axios.post('/nutrition/meals', {
+                text: mealText,
+                mealType,
+                time: mealTime
+            });
             setMealText('');
+            setMealTime('');
+            toast.success('Meal logged successfully!');
             fetchDaily();
-        } catch (error) {
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to log meal');
         } finally {
             setLogging(false);
         }
@@ -157,12 +168,12 @@ export default function NutritionPage() {
             <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">Calories</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Calories</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex justify-between items-end mb-2">
-                            <span className="text-3xl font-bold">{totals.calories}</span>
-                            <span className="text-sm text-gray-500">/ {Math.round(targets.targetCalories)} kcal</span>
+                            <span className="text-3xl font-bold">{Math.round(totals.calories)}</span>
+                            <span className="text-sm text-muted-foreground">/ {Math.round(targets.targetCalories)} kcal</span>
                         </div>
                         <Progress value={calProgress} className="h-2" />
                     </CardContent>
@@ -170,76 +181,132 @@ export default function NutritionPage() {
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">Macros</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Macros</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                            <span>Protein</span>
-                            <span>{Math.round(totals.protein)} / {Math.round(targets.targetProtein)}g</span>
+                    <CardContent className="space-y-3">
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-semibold uppercase tracking-tight">
+                                <span>Protein</span>
+                                <span>{Math.round(totals.protein)} / {Math.round(targets.targetProtein)}g</span>
+                            </div>
+                            <Progress value={Math.min((totals.protein / targets.targetProtein) * 100, 100)} className="h-1.5" />
                         </div>
-                        <Progress value={Math.min((totals.protein / targets.targetProtein) * 100, 100)} className="h-1.5 bg-orange-100/10" indicatorClassName="bg-orange-500" />
 
-                        <div className="flex justify-between text-sm">
-                            <span>Carbs</span>
-                            <span>{Math.round(totals.carbs)} / {Math.round(targets.targetCarbs)}g</span>
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-semibold uppercase tracking-tight">
+                                <span>Carbs</span>
+                                <span>{Math.round(totals.carbs)} / {Math.round(targets.targetCarbs)}g</span>
+                            </div>
+                            <Progress value={Math.min((totals.carbs / targets.targetCarbs) * 100, 100)} className="h-1.5" />
                         </div>
-                        <Progress value={Math.min((totals.carbs / targets.targetCarbs) * 100, 100)} className="h-1.5 bg-green-100" indicatorClassName="bg-green-500" />
 
-                        <div className="flex justify-between text-sm">
-                            <span>Fat</span>
-                            <span>{Math.round(totals.fat)} / {Math.round(targets.targetFat)}g</span>
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-semibold uppercase tracking-tight">
+                                <span>Fat</span>
+                                <span>{Math.round(totals.fat)} / {Math.round(targets.targetFat)}g</span>
+                            </div>
+                            <Progress value={Math.min((totals.fat / targets.targetFat) * 100, 100)} className="h-1.5" />
                         </div>
-                        <Progress value={Math.min((totals.fat / targets.targetFat) * 100, 100)} className="h-1.5 bg-yellow-100" indicatorClassName="bg-yellow-500" />
+
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-semibold uppercase tracking-tight">
+                                <span>Fiber</span>
+                                <span>{Math.round(totals.fiber)}g</span>
+                            </div>
+                            <Progress value={Math.min((totals.fiber / 30) * 100, 100)} className="h-1.5" />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card>
+            <Card className="border-primary/20 bg-primary/5">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-orange-500" />
+                    <CardTitle className="flex items-center gap-2 text-primary">
+                        <Zap className="h-5 w-5" />
                         AI Meal Logger
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogMeal} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Meal Type</Label>
+                                <Select value={mealType} onValueChange={setMealType}>
+                                    <SelectTrigger className="bg-background border-primary/20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Breakfast">Breakfast</SelectItem>
+                                        <SelectItem value="Lunch">Lunch</SelectItem>
+                                        <SelectItem value="Dinner">Dinner</SelectItem>
+                                        <SelectItem value="Snack">Snack</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Time (Optional)</Label>
+                                <Input
+                                    type="time"
+                                    className="bg-background border-primary/20"
+                                    value={mealTime}
+                                    onChange={e => setMealTime(e.target.value)}
+                                />
+                            </div>
+                        </div>
                         <div className="space-y-2">
-                            <Label>What did you eat?</Label>
+                            <Label>Description</Label>
                             <Input
-                                placeholder="e.g., 200g chicken breast and a cup of rice"
+                                placeholder="e.g., 2 boiled eggs and a slice of toast"
+                                className="bg-background border-primary/20"
                                 value={mealText}
                                 onChange={e => setMealText(e.target.value)}
+                                required
                             />
                         </div>
                         <Button type="submit" disabled={logging} className="w-full">
                             {logging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                            Log Meal
+                            Log {mealType}
                         </Button>
                     </form>
                 </CardContent>
             </Card>
 
             <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Today's Meals</h3>
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Utensils className="h-5 w-5 text-primary" />
+                    Today's Meals
+                </h3>
                 {dailyStats?.meals?.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No meals logged yet.</p>
+                    <div className="text-center py-10 border-2 border-dashed border-muted rounded">
+                        <p className="text-muted-foreground text-sm uppercase font-semibold">No meals logged yet today</p>
+                    </div>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {dailyStats?.meals?.map((meal: any) => (
-                            <Card key={meal._id}>
-                                <CardContent className="p-4 flex justify-between items-center">
-                                    <div>
-                                        <p className="font-medium">{meal.name}</p>
-                                        <p className="text-xs text-gray-500">
-                                            {meal.protein}p • {meal.carbs}c • {meal.fat}f
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="font-bold">{meal.calories}</span>
-                                        <span className="text-xs text-gray-500 block">kcal</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <Link
+                                href={`/nutrition/${meal._id}`}
+                                key={meal._id}
+                                className="block"
+                            >
+                                <Card className="hover:border-primary/50 transition-colors">
+                                    <CardContent className="p-4 flex justify-between items-center">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-xs font-bold uppercase py-0.5 px-2 bg-primary/10 text-primary rounded-full">
+                                                    {meal.mealType}
+                                                </span>
+                                                {meal.time && <span className="text-[10px] text-muted-foreground">{meal.time}</span>}
+                                            </div>
+                                            <p className="font-semibold">{meal.name}</p>
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+                                                {Math.round(meal.protein)}P • {Math.round(meal.carbs)}C • {Math.round(meal.fat)}F
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-xl font-black">{Math.round(meal.calories)}</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground block uppercase">kcal</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </Link>
                         ))}
                     </div>
                 )}
@@ -247,10 +314,3 @@ export default function NutritionPage() {
         </div>
     );
 }
-
-// Helper styling for Progress component is needed if not already present in Shadcn
-// Assuming Progress is available. If not, I should create it or use standard HTML progress.
-// But I was asked to use "Shadcn/UI". I assume the user has it, or I should have created it.
-// I installed shadcn but I didn't verify components.
-// "frontend structure" says "components/ui".
-// I did not explicitly create a Progress component. I should create it.

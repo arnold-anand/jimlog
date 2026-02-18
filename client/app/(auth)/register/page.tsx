@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 const formSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email(),
     password: z.string().min(6),
     confirmPassword: z.string().min(6),
@@ -38,6 +39,7 @@ export default function RegisterPage() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            name: '',
             email: '',
             password: '',
             confirmPassword: '',
@@ -48,6 +50,7 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             const { data } = await axios.post('/auth/register', {
+                name: values.name,
                 email: values.email,
                 password: values.password,
             });
@@ -69,6 +72,19 @@ export default function RegisterPage() {
                 <CardContent>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Enter your full name" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={form.control}
                                 name="email"

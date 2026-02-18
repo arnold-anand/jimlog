@@ -4,6 +4,19 @@ import { persist } from 'zustand/middleware';
 interface User {
     _id: string;
     email: string;
+    name?: string;
+    nutritionProfile?: {
+        age?: number;
+        gender?: 'male' | 'female';
+        height?: number;
+        weight?: number;
+        activityLevel?: string;
+        goal?: string;
+        targetCalories?: number;
+        targetProtein?: number;
+        targetCarbs?: number;
+        targetFat?: number;
+    };
 }
 
 interface AuthState {
