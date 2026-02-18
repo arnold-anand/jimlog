@@ -4,10 +4,15 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import axios from '@/lib/axios';
 import { Loader2 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+
+const PUBLIC_ROUTES = ['/login', '/register'];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, accessToken, initialized, setAuth, logout, setInitialized } = useAuthStore();
     const [verifying, setVerifying] = useState(false);
+    const pathname = usePathname();
+    const router = useRouter();
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -18,22 +23,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 setVerifying(true);
                 try {
                     const { data } = await axios.get('/auth/me');
-                    // data: { _id, email }
                     setAuth(data, accessToken);
                 } catch (error) {
                     console.error('Session verification failed:', error);
-                    // logout() will set initialized: true
                     logout();
                 } finally {
                     setVerifying(false);
                 }
             } else {
-                // If we don't have a user, try to refresh immediately in case cookie exists
                 try {
-                    // Axios interceptor handles refresh loop if this 401s, 
-                    // but we can try explicitly to see if we get back in.
                     await axios.get('/auth/me');
-                    // setAuth is handled by the axios interceptor on successful refresh
                     setInitialized(true);
                 } catch (e) {
                     setInitialized(true);
@@ -44,6 +43,19 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         checkAuth();
     }, [initialized, user, accessToken, setAuth, logout, setInitialized]);
 
+    // Redirection logic
+    useEffect(() => {
+        if (!initialized || verifying) return;
+
+        const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+
+        if (!user && !isPublicRoute) {
+            router.replace('/login');
+        } else if (user && isPublicRoute) {
+            router.replace('/dashboard');
+        }
+    }, [initialized, user, pathname, router, verifying]);
+
     if (verifying || !initialized) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
@@ -52,6 +64,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
             </div>
         );
     }
+
+    // Prevent flicker: if we are supposed to redirect, don't show children
+    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+    if (!user && !isPublicRoute) return null;
+    if (user && isPublicRoute) return null;
 
     return <>{children}</>;
 }
