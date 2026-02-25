@@ -94,7 +94,10 @@
 
   /* Prevent automatic zoom on input focus on iOS */
   @media screen and (max-width: 768px) {
-    input, select, textarea {
+
+    input,
+    select,
+    textarea {
       font-size: 16px !important;
     }
   }
@@ -103,4 +106,14 @@
 /* Glassmorphism utilities */
 .glass {
   @apply backdrop-blur-lg bg-white/5 border border-white/10;
+}
+
+/* Remove Recharts focus outline */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-surface:focus,
+.recharts-layer:focus,
+svg:focus,
+svg *:focus {
+  outline: none !important;
 }

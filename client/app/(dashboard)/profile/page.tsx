@@ -84,15 +84,26 @@ export default function ProfilePage() {
     async function onSubmit(values: ProfileFormValues) {
         setLoading(true);
         try {
+            const proteinPerKg: Record<string, number> = {
+                weight_loss: 1.8,
+                mild_weight_loss: 1.6,
+                maintain: 1.4,
+                muscle_gain: 1.8,
+                body_recomposition: 2.0,
+            };
+            const multiplier = proteinPerKg[values.goal] ?? 1.4;
+            const targetProtein = Math.round(values.weight * multiplier);
+            const targetFat = Math.round((calculatedCalories! * 0.25) / 9);
+            const targetCarbs = Math.round((calculatedCalories! - targetProtein * 4 - targetFat * 9) / 4);
+
             const profileData = {
                 name: values.name,
                 nutritionProfile: {
                     ...values,
                     targetCalories: calculatedCalories,
-                    // Simple macro split: 30% P, 40% C, 30% F
-                    targetProtein: Math.round((calculatedCalories! * 0.3) / 4),
-                    targetCarbs: Math.round((calculatedCalories! * 0.4) / 4),
-                    targetFat: Math.round((calculatedCalories! * 0.3) / 9),
+                    targetProtein,
+                    targetCarbs,
+                    targetFat,
                 }
             };
 

@@ -30,10 +30,21 @@ const updateProfile = asyncHandler(async (req, res) => {
     else if (goal === 'muscle_gain') targetCalories += 300;
     else if (goal === 'body_recomposition') targetCalories -= 100;
 
-    // Macros
-    const targetProtein = (targetCalories * 0.3) / 4;
-    const targetCarbs = (targetCalories * 0.35) / 4;
-    const targetFat = (targetCalories * 0.35) / 9;
+    // Science-based macros:
+    // Protein (g) = body weight × multiplier based on goal
+    // Fat = 25% of calories
+    // Carbs = remainder
+    const proteinPerKg = {
+        weight_loss: 1.8,        // Higher protein preserves muscle during deficit
+        mild_weight_loss: 1.6,
+        maintain: 1.4,           // General maintenance for moderately active person
+        muscle_gain: 1.8,        // Supports hypertrophy
+        body_recomposition: 2.0, // High protein needed for simultaneous loss & gain
+    };
+    const multiplier = proteinPerKg[goal] || 1.4;
+    const targetProtein = Math.round(weight * multiplier);
+    const targetFat = Math.round((targetCalories * 0.25) / 9);
+    const targetCarbs = Math.round((targetCalories - (targetProtein * 4) - (targetFat * 9)) / 4);
 
     user.nutritionProfile = {
         age, gender, height, weight, activityLevel, goal,
@@ -74,11 +85,16 @@ const logMeal = asyncHandler(async (req, res) => {
         try {
             const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
             const prompt = `Parse the following meal description into individual food items. 
-            For each item, provide: name, amount (e.g., "207 g cooked", "1 cup", "100g"), calories, protein, carbs, fat, fiber.
+            CRITICAL INSTRUCTION: You must provide extremely accurate, realistic macronutrients based precisely on the USDA FoodData Central database. Do NOT overestimate.
+            Standard references: 
+            - 100g raw chicken breast = ~120 calories, ~23g protein, 0g carbs, ~2.5g fat.
+            - 100g cooked white rice = ~130 calories, ~2.7g protein, ~28g carbs, ~0.3g fat.
+            - Use RAW weights if specified in the prompt.
+            For each item, provide: name, amount (e.g., "200 g raw weight", "250g"), calories, protein, carbs, fat, fiber.
             Description: "${text}"
             Format your response as a JSON array of objects: 
             [{"name": "...", "amount": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0}]
-            Return ONLY the JSON array, no markdown. Ensure all macro values are numbers.`;
+            Return ONLY the JSON array, no markdown. Ensure all macro values are numbers based on precise USDA calculations for the given amounts.`;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;

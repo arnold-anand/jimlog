@@ -39,6 +39,8 @@ const registerUser = asyncHandler(async (req, res) => {
         res.status(201).json({
             _id: user._id,
             email: user.email,
+            name: user.name,
+            nutritionProfile: user.nutritionProfile,
             accessToken,
         });
     } else {
@@ -70,6 +72,8 @@ const loginUser = asyncHandler(async (req, res) => {
         res.json({
             _id: user._id,
             email: user.email,
+            name: user.name,
+            nutritionProfile: user.nutritionProfile,
             accessToken,
         });
     } else {

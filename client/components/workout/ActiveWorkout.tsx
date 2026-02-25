@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/dialog";
 
 interface Set {
-    weight: number;
-    reps: number;
+    weight?: number;
+    reps?: number;
+    time?: number;
     completed: boolean;
 }
 
@@ -31,6 +32,7 @@ interface WorkoutExercise {
         _id: string;
         name: string;
         muscleGroups: string[];
+        equipment?: string;
     };
     sets: Set[];
 }
@@ -46,18 +48,30 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     const [finishDialogOpen, setFinishDialogOpen] = useState(false);
     const [shortWorkoutWarning, setShortWorkoutWarning] = useState(false);
 
+    // Filtering states
+    const [selectedMuscle, setSelectedMuscle] = useState<string>('');
+    const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+
+    // Fetch exercises function
+    const fetchGlobalExercises = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (selectedMuscle) params.append('muscleGroup', selectedMuscle);
+            if (selectedEquipment) params.append('equipment', selectedEquipment);
+
+            const { data } = await axios.get(`/exercises?${params.toString()}`);
+            setAllExercises(data);
+        } catch (error) {
+            console.error('Failed to fetch exercises');
+        }
+    };
+
     useEffect(() => {
         // Fetch global exercises for the "Add Exercise" modal
-        const fetchGlobalExercises = async () => {
-            try {
-                const { data } = await axios.get('/exercises');
-                setAllExercises(data);
-            } catch (error) {
-                console.error('Failed to fetch exercises');
-            }
-        };
         fetchGlobalExercises();
+    }, [selectedMuscle, selectedEquipment]);
 
+    useEffect(() => {
         // Fetch workout if store is empty or mismatches (handling page reload)
         const fetchWorkout = async () => {
             try {
@@ -71,10 +85,13 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                     // For now, let's assume store persistence handles immediate state, 
                     // but if store is empty, we populate from DB.
                     if (exercises.length === 0 && data.exercises) {
-                        updateExercises(data.exercises.map((e: any) => ({
-                            exercise: e.exercise,
-                            sets: e.sets.length > 0 ? e.sets : [{ weight: 0, reps: 0, completed: false }] // Ensure at least one set
-                        })));
+                        updateExercises(data.exercises
+                            .filter((e: any) => e.exercise != null)
+                            .map((e: any) => ({
+                                exercise: e.exercise,
+                                sets: e.sets.length > 0 ? e.sets : [{ weight: 0, reps: 0, completed: false }]
+                            }))
+                        );
                     }
                 }
             } catch (error) {
@@ -199,58 +216,139 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
             </div>
 
             {exercises.map((exerciseData, exerciseIndex) => (
-                <Card key={exerciseData.exercise._id || exerciseIndex}>
+                <Card key={exerciseData.exercise?._id || exerciseIndex}>
                     <CardHeader className="pb-3">
                         <CardTitle className="text-lg flex justify-between">
-                            {exerciseData.exercise.name}
+                            {exerciseData.exercise?.name || 'Deleted Exercise'}
                         </CardTitle>
                         <div className="flex gap-1">
-                            {exerciseData.exercise.muscleGroups?.map(m => (
+                            {exerciseData.exercise?.muscleGroups?.map((m: string) => (
                                 <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>
                             ))}
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
-                            <div className="grid grid-cols-10 gap-2 text-xs font-semibold text-muted-foreground mb-2 text-center">
-                                <div className="col-span-2">SET</div>
-                                <div className="col-span-3">KG</div>
-                                <div className="col-span-3">REPS</div>
-                                <div className="col-span-2">✓</div>
-                            </div>
-                            {exerciseData.sets.map((set, setIndex) => (
-                                <div key={setIndex} className={cn("grid grid-cols-10 gap-2 items-center", set.completed && "opacity-50 transition-opacity")}>
-                                    <div className="col-span-2 text-center bg-muted rounded py-2 font-medium">
-                                        {setIndex + 1}
-                                    </div>
-                                    <div className="col-span-3">
-                                        <Input
-                                            type="number"
-                                            className="text-center h-9"
-                                            value={set.weight}
-                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="col-span-3">
-                                        <Input
-                                            type="number"
-                                            className="text-center h-9"
-                                            value={set.reps}
-                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="col-span-2 flex justify-center">
-                                        <Button
-                                            size="sm"
-                                            variant={set.completed ? "default" : "outline"}
-                                            className={cn("h-9 w-9 p-0", set.completed ? "bg-orange-500 hover:bg-orange-600" : "")}
-                                            onClick={() => toggleSetComplete(exerciseIndex, setIndex)}
-                                        >
-                                            <Check className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
+                            {(() => {
+                                const isCardio = exerciseData.exercise?.muscleGroups?.includes('Cardio');
+                                const isBodyweight = (exerciseData.exercise as any)?.equipment === 'Bodyweight';
+
+                                if (isCardio) {
+                                    return (
+                                        <>
+                                            <div className="grid grid-cols-10 gap-2 text-xs font-semibold text-muted-foreground mb-2 text-center">
+                                                <div className="col-span-2">SET</div>
+                                                <div className="col-span-6">TIME (MIN)</div>
+                                                <div className="col-span-2">✓</div>
+                                            </div>
+                                            {exerciseData.sets.map((set, setIndex) => (
+                                                <div key={setIndex} className={cn("grid grid-cols-10 gap-2 items-center mb-2", set.completed && "opacity-50 transition-opacity")}>
+                                                    <div className="col-span-2 text-center bg-muted rounded py-2 font-medium">{setIndex + 1}</div>
+                                                    <div className="col-span-6">
+                                                        <Input
+                                                            type="number"
+                                                            className="text-center h-9"
+                                                            value={(set as any).time || ''}
+                                                            placeholder="0"
+                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'time', Number(e.target.value))}
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2 flex justify-center">
+                                                        <Button
+                                                            size="sm"
+                                                            variant={set.completed ? "default" : "outline"}
+                                                            className={cn("h-9 w-9 p-0", set.completed ? "bg-orange-500 hover:bg-orange-600" : "")}
+                                                            onClick={() => toggleSetComplete(exerciseIndex, setIndex)}
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    );
+                                }
+
+                                if (isBodyweight) {
+                                    return (
+                                        <>
+                                            <div className="grid grid-cols-10 gap-2 text-xs font-semibold text-muted-foreground mb-2 text-center">
+                                                <div className="col-span-2">SET</div>
+                                                <div className="col-span-6">REPS</div>
+                                                <div className="col-span-2">✓</div>
+                                            </div>
+                                            {exerciseData.sets.map((set, setIndex) => (
+                                                <div key={setIndex} className={cn("grid grid-cols-10 gap-2 items-center mb-2", set.completed && "opacity-50 transition-opacity")}>
+                                                    <div className="col-span-2 text-center bg-muted rounded py-2 font-medium">{setIndex + 1}</div>
+                                                    <div className="col-span-6">
+                                                        <Input
+                                                            type="number"
+                                                            className="text-center h-9"
+                                                            value={set.reps || ''}
+                                                            placeholder="0"
+                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2 flex justify-center">
+                                                        <Button
+                                                            size="sm"
+                                                            variant={set.completed ? "default" : "outline"}
+                                                            className={cn("h-9 w-9 p-0", set.completed ? "bg-orange-500 hover:bg-orange-600" : "")}
+                                                            onClick={() => toggleSetComplete(exerciseIndex, setIndex)}
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    );
+                                }
+
+                                return (
+                                    <>
+                                        <div className="grid grid-cols-10 gap-2 text-xs font-semibold text-muted-foreground mb-2 text-center">
+                                            <div className="col-span-2">SET</div>
+                                            <div className="col-span-3">KG</div>
+                                            <div className="col-span-3">REPS</div>
+                                            <div className="col-span-2">✓</div>
+                                        </div>
+                                        {exerciseData.sets.map((set, setIndex) => (
+                                            <div key={setIndex} className={cn("grid grid-cols-10 gap-2 items-center mb-2", set.completed && "opacity-50 transition-opacity")}>
+                                                <div className="col-span-2 text-center bg-muted rounded py-2 font-medium">{setIndex + 1}</div>
+                                                <div className="col-span-3">
+                                                    <Input
+                                                        type="number"
+                                                        className="text-center h-9"
+                                                        value={set.weight || ''}
+                                                        placeholder="0"
+                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
+                                                    />
+                                                </div>
+                                                <div className="col-span-3">
+                                                    <Input
+                                                        type="number"
+                                                        className="text-center h-9"
+                                                        value={set.reps || ''}
+                                                        placeholder="0"
+                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 flex justify-center">
+                                                    <Button
+                                                        size="sm"
+                                                        variant={set.completed ? "default" : "outline"}
+                                                        className={cn("h-9 w-9 p-0", set.completed ? "bg-orange-500 hover:bg-orange-600" : "")}
+                                                        onClick={() => toggleSetComplete(exerciseIndex, setIndex)}
+                                                    >
+                                                        <Check className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                );
+                            })()}
                         </div>
                         <Button variant="ghost" size="sm" className="w-full mt-4 text-gray-500" onClick={() => addSet(exerciseIndex)}>
                             <Plus className="h-4 w-4 mr-2" /> Add Set
@@ -270,7 +368,65 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                         <DialogHeader>
                             <DialogTitle>Select Exercise</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-2">
+                        <div className="grid grid-cols-2 gap-2 mt-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Muscle Group</label>
+                                <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={selectedMuscle}
+                                    onChange={(e) => setSelectedMuscle(e.target.value)}
+                                >
+                                    <option value="">All Muscles</option>
+                                    <option value="Abdominals">Abdominals</option>
+                                    <option value="Biceps">Biceps</option>
+                                    <option value="Calves">Calves</option>
+                                    <option value="Cardio">Cardio</option>
+                                    <option value="Chest">Chest</option>
+                                    <option value="Core">Core</option>
+                                    <option value="Forearms">Forearms</option>
+                                    <option value="Full Body">Full Body</option>
+                                    <option value="Glutes">Glutes</option>
+                                    <option value="Hamstrings">Hamstrings</option>
+                                    <option value="Lats">Lats</option>
+                                    <option value="Lower Back">Lower Back</option>
+                                    <option value="Neck">Neck</option>
+                                    <option value="Obliques">Obliques</option>
+                                    <option value="Quadriceps">Quadriceps</option>
+                                    <option value="Shoulders">Shoulders</option>
+                                    <option value="Traps">Traps</option>
+                                    <option value="Triceps">Triceps</option>
+                                    <option value="Upper Back">Upper Back</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Equipment</label>
+                                <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={selectedEquipment}
+                                    onChange={(e) => setSelectedEquipment(e.target.value)}
+                                >
+                                    <option value="">All Equipment</option>
+                                    <option value="Ab Wheel">Ab Wheel</option>
+                                    <option value="Band">Band</option>
+                                    <option value="Barbell">Barbell</option>
+                                    <option value="Bodyweight">Bodyweight</option>
+                                    <option value="Box">Box</option>
+                                    <option value="Cable">Cable</option>
+                                    <option value="Dumbbell">Dumbbell</option>
+                                    <option value="EZ Bar">EZ Bar</option>
+                                    <option value="Kettlebell">Kettlebell</option>
+                                    <option value="Machine">Machine</option>
+                                    <option value="Medicine Ball">Medicine Ball</option>
+                                    <option value="Plate">Plate</option>
+                                    <option value="Rings">Rings</option>
+                                    <option value="Rope">Rope</option>
+                                    <option value="Suspension">Suspension</option>
+                                    <option value="Trap Bar">Trap Bar</option>
+                                    <option value="Weighted">Weighted</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid gap-2 mt-2">
                             {allExercises.map((ex) => (
                                 <div
                                     key={ex._id}

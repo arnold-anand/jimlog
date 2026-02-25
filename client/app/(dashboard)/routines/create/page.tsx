@@ -29,6 +29,8 @@ interface RoutineExercise {
     exerciseId: string; // Changed to match backend expectation, but we need exercise details for UI
     name: string; // Helper for UI
     plannedSets: number;
+    muscleGroups: string[];
+    equipment: string;
 }
 
 export default function CreateRoutinePage() {
@@ -39,16 +41,26 @@ export default function CreateRoutinePage() {
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
 
+    // Filtering states
+    const [selectedMuscle, setSelectedMuscle] = useState<string>('');
+    const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+
+    // Fetch exercises function wrapping axios
+    const fetchExercises = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (selectedMuscle) params.append('muscleGroup', selectedMuscle);
+            if (selectedEquipment) params.append('equipment', selectedEquipment);
+
+            const { data } = await axios.get(`/exercises?${params.toString()}`);
+            setExercises(data);
+        } catch (error) {
+        }
+    };
+
     useEffect(() => {
-        const fetchExercises = async () => {
-            try {
-                const { data } = await axios.get('/exercises');
-                setExercises(data);
-            } catch (error) {
-            }
-        };
         fetchExercises();
-    }, []);
+    }, [selectedMuscle, selectedEquipment]);
 
     const addExercise = (exercise: Exercise) => {
         if (selectedExercises.some((e) => e.exerciseId === exercise._id)) {
@@ -56,7 +68,13 @@ export default function CreateRoutinePage() {
         }
         setSelectedExercises([
             ...selectedExercises,
-            { exerciseId: exercise._id, name: exercise.name, plannedSets: 3 },
+            {
+                exerciseId: exercise._id,
+                name: exercise.name,
+                plannedSets: 3,
+                muscleGroups: exercise.muscleGroups,
+                equipment: exercise.equipment
+            },
         ]);
         setOpen(false); // Close dialog
     };
@@ -127,7 +145,65 @@ export default function CreateRoutinePage() {
                                 <DialogHeader>
                                     <DialogTitle>Select Exercise</DialogTitle>
                                 </DialogHeader>
-                                <div className="grid gap-2">
+                                <div className="grid grid-cols-2 gap-2 mt-4">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Muscle Group</Label>
+                                        <select
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={selectedMuscle}
+                                            onChange={(e) => setSelectedMuscle(e.target.value)}
+                                        >
+                                            <option value="">All Muscles</option>
+                                            <option value="Abdominals">Abdominals</option>
+                                            <option value="Biceps">Biceps</option>
+                                            <option value="Calves">Calves</option>
+                                            <option value="Cardio">Cardio</option>
+                                            <option value="Chest">Chest</option>
+                                            <option value="Core">Core</option>
+                                            <option value="Forearms">Forearms</option>
+                                            <option value="Full Body">Full Body</option>
+                                            <option value="Glutes">Glutes</option>
+                                            <option value="Hamstrings">Hamstrings</option>
+                                            <option value="Lats">Lats</option>
+                                            <option value="Lower Back">Lower Back</option>
+                                            <option value="Neck">Neck</option>
+                                            <option value="Obliques">Obliques</option>
+                                            <option value="Quadriceps">Quadriceps</option>
+                                            <option value="Shoulders">Shoulders</option>
+                                            <option value="Traps">Traps</option>
+                                            <option value="Triceps">Triceps</option>
+                                            <option value="Upper Back">Upper Back</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Equipment</Label>
+                                        <select
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={selectedEquipment}
+                                            onChange={(e) => setSelectedEquipment(e.target.value)}
+                                        >
+                                            <option value="">All Equipment</option>
+                                            <option value="Ab Wheel">Ab Wheel</option>
+                                            <option value="Band">Band</option>
+                                            <option value="Barbell">Barbell</option>
+                                            <option value="Bodyweight">Bodyweight</option>
+                                            <option value="Box">Box</option>
+                                            <option value="Cable">Cable</option>
+                                            <option value="Dumbbell">Dumbbell</option>
+                                            <option value="EZ Bar">EZ Bar</option>
+                                            <option value="Kettlebell">Kettlebell</option>
+                                            <option value="Machine">Machine</option>
+                                            <option value="Medicine Ball">Medicine Ball</option>
+                                            <option value="Plate">Plate</option>
+                                            <option value="Rings">Rings</option>
+                                            <option value="Rope">Rope</option>
+                                            <option value="Suspension">Suspension</option>
+                                            <option value="Trap Bar">Trap Bar</option>
+                                            <option value="Weighted">Weighted</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid gap-2 mt-2">
                                     {exercises.map((ex) => (
                                         <div
                                             key={ex._id}
@@ -157,6 +233,14 @@ export default function CreateRoutinePage() {
                                     <CardContent className="p-4 flex items-center justify-between gap-4">
                                         <div className="flex-1">
                                             <p className="font-medium">{ex.name}</p>
+                                            <div className="flex gap-1 mt-1">
+                                                {ex.muscleGroups?.includes('Cardio') && (
+                                                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Duration based</span>
+                                                )}
+                                                {ex.equipment === 'Bodyweight' && (
+                                                    <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">Reps only</span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Label className="text-xs">Sets</Label>

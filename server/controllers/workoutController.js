@@ -201,10 +201,27 @@ const endWorkout = async (req, res) => {
     }
 };
 
+// @desc    Get user workouts history
+// @route   GET /workouts
+// @access  Private
+const getWorkouts = async (req, res) => {
+    try {
+        const workouts = await Workout.find({ user: req.user._id, endedAt: { $ne: null } })
+            .sort({ endedAt: -1 })
+            .populate('exercises.exercise');
+
+        res.json(workouts);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 module.exports = {
     startWorkout,
     getActiveWorkout,
     updateWorkout,
     deleteWorkout,
     endWorkout,
+    getWorkouts,
 };

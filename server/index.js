@@ -10,8 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const { protect } = require('./middleware/authMiddleware');
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Changed from 5000 to avoid macOS AirPlay conflict
-
+const PORT = process.env.PORT || 5001; 
 // Trust Proxy (Required for Next.js Rewrites/Proxy)
 app.set('trust proxy', 1);
 

@@ -1,45 +1,126 @@
 'use client';
 
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
+    Radar,
+    RadarChart,
+    PolarGrid,
+    PolarAngleAxis,
     ResponsiveContainer,
-    Cell
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-export default function MuscleDistributionChart({ data }: { data: any[] }) {
-    // Data: [{ _id: 'Chest', sets: 10, volume: 500 }, ...]
+interface MuscleData {
+    _id: string; // Muscle group name
+    sets: number;
+    volume: number;
+}
 
-    const colors = ['#f97316', '#a1a1aa', '#71717a', '#52525b', '#3f3f46', '#27272a'];
+interface MuscleDistributionChartProps {
+    current: MuscleData[];
+    previous: MuscleData[];
+}
+
+export default function MuscleDistributionChart({
+    current,
+    previous,
+}: MuscleDistributionChartProps) {
+    // We want exactly 6 axes: Back, Chest, Core, Shoulders, Arms, Legs
+    // We need to map our specific muscles to these 6 broader categories
+    const categoryMap: Record<string, string> = {
+        'Lats': 'Back',
+        'Upper Back': 'Back',
+        'Lower Back': 'Back',
+        'Traps': 'Back',
+
+        'Chest': 'Chest',
+
+        'Abdominals': 'Core',
+        'Obliques': 'Core',
+        'Core': 'Core',
+
+        'Shoulders': 'Shoulders',
+
+        'Biceps': 'Arms',
+        'Triceps': 'Arms',
+        'Forearms': 'Arms',
+
+        'Quadriceps': 'Legs',
+        'Hamstrings': 'Legs',
+        'Calves': 'Legs',
+        'Glutes': 'Legs',
+    };
+
+    const categories = ['Back', 'Chest', 'Core', 'Shoulders', 'Arms', 'Legs'];
+
+    const processData = (dataList: MuscleData[]) => {
+        const aggregated: Record<string, number> = {};
+        categories.forEach(c => aggregated[c] = 0);
+
+        dataList.forEach(m => {
+            const mapped = categoryMap[m._id];
+            if (mapped) {
+                // The screenshot shows the size of the radar based on volume or sets. We will use sets as a more balanced metric across different muscles.
+                aggregated[mapped] += m.sets;
+            }
+        });
+
+        // Find max to normalize (Optional, Recharts autoscales, but we can do it to ensure shape)
+        return aggregated;
+    };
+
+    const currentAgg = processData(current);
+    const previousAgg = processData(previous);
+
+    const chartData = categories.map(category => ({
+        subject: category,
+        A: currentAgg[category], // Current
+        B: previousAgg[category], // Previous
+    }));
 
     return (
-        <Card className="col-span-1">
-            <CardHeader>
-                <CardTitle>Muscle Distribution (Sets)</CardTitle>
+        <Card className="bg-[#222] border-[#27272a] text-white">
+            <CardHeader className="text-center pb-0 border-b border-[#27272a]/50">
+                <CardTitle className="text-lg font-normal mb-4">Muscle distribution</CardTitle>
             </CardHeader>
-            <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={data}
-                        layout="vertical"
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="_id" type="category" width={80} tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Bar dataKey="sets" fill="#f97316" radius={[0, 4, 4, 0]}>
-                            {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <CardContent className="pt-6">
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                            <PolarGrid stroke="#27272a" />
+                            <PolarAngleAxis
+                                dataKey="subject"
+                                tick={{ fill: '#71717a', fontSize: 12 }}
+                            />
+                            {/* Previous Period */}
+                            <Radar
+                                name="Previous"
+                                dataKey="B"
+                                stroke="#52525b"
+                                fill="#52525b"
+                                fillOpacity={0.3}
+                            />
+                            {/* Current Period */}
+                            <Radar
+                                name="Current"
+                                dataKey="A"
+                                stroke="#f97316"
+                                fill="#f97316"
+                                fillOpacity={0.5}
+                            />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <div className="flex justify-center items-center gap-6 mt-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+                        Current
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#52525b]"></div>
+                        Previous
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );

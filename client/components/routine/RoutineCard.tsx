@@ -31,7 +31,7 @@ export default function RoutineCard({ routine, onDelete }: { routine: RoutinePro
     const [deleting, setDeleting] = useState(false);
 
     const muscleGroups = Array.from(
-        new Set(routine.exercises.flatMap((e) => e.exercise.muscleGroups))
+        new Set(routine.exercises.flatMap((e) => e.exercise?.muscleGroups || []))
     ).slice(0, 3);
 
     const handleDelete = async () => {
