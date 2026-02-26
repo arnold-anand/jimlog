@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import axios from '@/lib/axios';
+import { useCacheStore } from '@/store/useCacheStore';
 import RoutineCard from '@/components/routine/RoutineCard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -15,14 +16,19 @@ interface Routine {
     updatedAt: string;
 }
 
+const CACHE_KEY = 'routines';
+
 export default function RoutinesPage() {
-    const [routines, setRoutines] = useState<Routine[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { getCache, setCache, invalidate } = useCacheStore();
+    const cached = getCache(CACHE_KEY);
+    const [routines, setRoutines] = useState<Routine[]>(cached ?? []);
+    const [loading, setLoading] = useState(!cached);
 
     const fetchRoutines = async () => {
         try {
             const { data } = await axios.get('/routines');
             setRoutines(data);
+            setCache(CACHE_KEY, data);
         } catch (error) {
             console.error('Failed to fetch routines', error);
         } finally {
@@ -31,13 +37,14 @@ export default function RoutinesPage() {
     };
 
     useEffect(() => {
+        if (cached) return;
         fetchRoutines();
     }, []);
 
     const handleDelete = async (id: string) => {
         try {
             await axios.delete(`/routines/${id}`);
-            // Refresh the list
+            invalidate(CACHE_KEY); // Bust cache so next visit is fresh
             fetchRoutines();
         } catch (error) {
             console.error('Failed to delete routine', error);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import axios from '@/lib/axios';
+import { useCacheStore } from '@/store/useCacheStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +36,7 @@ export default function EditRoutinePage() {
     const router = useRouter();
     const params = useParams();
     const routineId = params.id as string;
+    const { invalidate } = useCacheStore();
 
     const [name, setName] = useState('');
     const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -136,6 +138,7 @@ export default function EditRoutinePage() {
             };
 
             await axios.put(`/routines/${routineId}`, payload);
+            invalidate('routines');
             router.push('/routines');
         } catch (error) {
             console.error('Failed to update routine', error);

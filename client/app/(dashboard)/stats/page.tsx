@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import axios from '@/lib/axios';
+import { useCacheStore } from '@/store/useCacheStore';
 import MuscleDistributionChart from '@/components/stats/MuscleDistributionChart';
 import StatsSummaryCards from '@/components/stats/StatsSummaryCards';
 import ActivityBarChart from '@/components/stats/ActivityBarChart';
@@ -10,16 +11,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Flame } from 'lucide-react';
 
 export default function StatsPage() {
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [period, setPeriod] = useState<string>('30'); // Default to 30 days
+    const { getCache, setCache } = useCacheStore();
+    const [period, setPeriod] = useState<string>('30');
+    const cacheKey = `stats/${period}`;
+    const cached = getCache(cacheKey);
+    const [stats, setStats] = useState<any>(cached ?? null);
+    const [loading, setLoading] = useState(!cached);
 
     useEffect(() => {
         const fetchStats = async () => {
+            const fresh = getCache(cacheKey);
+            if (fresh) {
+                setStats(fresh);
+                setLoading(false);
+                return;
+            }
             setLoading(true);
             try {
                 const { data } = await axios.get(`/stats?period=${period}`);
                 setStats(data);
+                setCache(cacheKey, data);
             } catch (error) {
                 console.error('Failed to fetch stats', error);
             } finally {

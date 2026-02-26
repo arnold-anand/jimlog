@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useCacheStore } from '@/store/useCacheStore';
 import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +41,7 @@ interface WorkoutExercise {
 export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     const router = useRouter();
     const { exercises, updateExercises, endWorkout: clearStore } = useWorkoutStore();
+    const { invalidate, invalidateMatching } = useCacheStore();
     const [elapsedTime, setElapsedTime] = useState(0);
     const [loading, setLoading] = useState(false);
     const [workoutName, setWorkoutName] = useState('Workout');
@@ -164,9 +166,10 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     const handleDiscardWorkout = async () => {
         setLoading(true);
         try {
-            // Delete the workout without saving
             await axios.delete(`/workouts/${workoutId}`);
             clearStore();
+            invalidate('workouts/history');
+            invalidateMatching('stats/');
             router.push('/dashboard');
         } catch (error) {
         } finally {
@@ -183,15 +186,14 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     const handleFinishWorkout = async () => {
         setLoading(true);
         try {
-            // Filter out incomplete sets or empty sets if desired? 
-            // For now, send everything.
             await axios.put(`/workouts/${workoutId}`, { exercises });
             const { data } = await axios.post(`/workouts/${workoutId}/end`);
 
-            // Save summary data for the summary page to avoid refetching
             localStorage.setItem('lastWorkoutSummary', JSON.stringify(data));
 
             clearStore();
+            invalidate('workouts/history');
+            invalidateMatching('stats/');
             router.push(`/workout/${workoutId}/summary`);
         } catch (error) {
         } finally {

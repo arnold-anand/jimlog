@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCacheStore } from '@/store/useCacheStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -26,16 +27,22 @@ interface Workout {
     }[];
 }
 
+const CACHE_KEY = 'workouts/history';
+
 export default function DashboardPage() {
     const user = useAuthStore((state) => state.user);
-    const [workouts, setWorkouts] = useState<Workout[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { getCache, setCache } = useCacheStore();
+    const cached = getCache(CACHE_KEY);
+    const [workouts, setWorkouts] = useState<Workout[]>(cached ?? []);
+    const [loading, setLoading] = useState(!cached);
 
     useEffect(() => {
+        if (cached) return; // Already have fresh data
         const fetchWorkouts = async () => {
             try {
                 const { data } = await axios.get('/workouts/history');
                 setWorkouts(data);
+                setCache(CACHE_KEY, data);
             } catch (error) {
                 console.error("Failed to fetch workouts", error);
             } finally {

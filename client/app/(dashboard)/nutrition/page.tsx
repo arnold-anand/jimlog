@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
+import { useCacheStore } from '@/store/useCacheStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +13,18 @@ import { Utensils, Zap, Plus, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 
+const CACHE_KEY = 'nutrition/daily';
+
 export default function NutritionPage() {
-    const [profile, setProfile] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const { getCache, setCache, invalidate } = useCacheStore();
+    const cached = getCache(CACHE_KEY);
+    const [profile, setProfile] = useState<any>(cached?.targets ?? null);
+    const [loading, setLoading] = useState(!cached);
     const [mealText, setMealText] = useState('');
     const [mealType, setMealType] = useState('Breakfast');
     const [mealTime, setMealTime] = useState('');
     const [logging, setLogging] = useState(false);
-    const [dailyStats, setDailyStats] = useState<any>(null);
+    const [dailyStats, setDailyStats] = useState<any>(cached ?? null);
 
     // Profile Form State
     const [formData, setFormData] = useState({
@@ -35,6 +40,7 @@ export default function NutritionPage() {
         try {
             const { data } = await axios.get('/nutrition/daily');
             setDailyStats(data);
+            setCache(CACHE_KEY, data);
             if (data.targets && data.targets.targetCalories) {
                 setProfile(data.targets);
             }
@@ -46,6 +52,7 @@ export default function NutritionPage() {
     };
 
     useEffect(() => {
+        if (cached) return;
         fetchDaily();
     }, []);
 
@@ -59,6 +66,7 @@ export default function NutritionPage() {
                 weight: Number(formData.weight),
             });
             setProfile(data.nutritionProfile);
+            invalidate(CACHE_KEY); // Bust cache so macros reflect new profile
             fetchDaily(); // Refresh targets
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to save profile');
@@ -79,6 +87,7 @@ export default function NutritionPage() {
             setMealText('');
             setMealTime('');
             toast.success('Meal logged successfully!');
+            invalidate(CACHE_KEY); // Bust cache so totals update
             fetchDaily();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to log meal');

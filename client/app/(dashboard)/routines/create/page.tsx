@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
+import { useCacheStore } from '@/store/useCacheStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +36,7 @@ interface RoutineExercise {
 
 export default function CreateRoutinePage() {
     const router = useRouter();
+    const { invalidate } = useCacheStore();
     const [name, setName] = useState('');
     const [exercises, setExercises] = useState<Exercise[]>([]); // Global exercises
     const [selectedExercises, setSelectedExercises] = useState<RoutineExercise[]>([]);
@@ -108,6 +110,7 @@ export default function CreateRoutinePage() {
             };
 
             await axios.post('/routines', payload);
+            invalidate('routines');
             router.push('/routines');
         } catch (error) {
         } finally {
