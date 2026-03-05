@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useCacheStore } from '@/store/useCacheStore';
@@ -11,7 +11,20 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Check, Clock, Plus, Save } from 'lucide-react';
+import {
+    Clock,
+    Play,
+    Pause,
+    RotateCcw,
+    Plus,
+    Trash2,
+    Check,
+    Save,
+    MoreHorizontal,
+    ChevronUp,
+    ChevronDown,
+    Search
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     Dialog,
@@ -40,7 +53,7 @@ interface WorkoutExercise {
 
 export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     const router = useRouter();
-    const { exercises, updateExercises, endWorkout: clearStore } = useWorkoutStore();
+    const { exercises, setStoreExercises, endWorkout: clearStore, startTime, setWorkoutData } = useWorkoutStore();
     const { invalidate, invalidateMatching } = useCacheStore();
     const [elapsedTime, setElapsedTime] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -53,6 +66,7 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
     // Filtering states
     const [selectedMuscle, setSelectedMuscle] = useState<string>('');
     const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Fetch exercises function
     const fetchGlobalExercises = async () => {
@@ -79,21 +93,21 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
             try {
                 const { data } = await axios.get('/workouts/active');
                 if (data && data._id === workoutId) {
-                    // If we have an active workout match, ensure store is synced
-                    // This logic might need refinement if store has unsaved local changes
                     setWorkoutName(data.name);
 
-                    // Transform backend data to store format if needed, or rely on store persistence
-                    // For now, let's assume store persistence handles immediate state, 
-                    // but if store is empty, we populate from DB.
-                    if (exercises.length === 0 && data.exercises) {
-                        updateExercises(data.exercises
-                            .filter((e: any) => e.exercise != null)
-                            .map((e: any) => ({
-                                exercise: e.exercise,
-                                sets: e.sets.length > 0 ? e.sets : [{ weight: 0, reps: 0, completed: false }]
-                            }))
-                        );
+                    // Sync store if empty or missing critical data
+                    if (exercises.length === 0 || !startTime) {
+                        setWorkoutData({
+                            activeWorkoutId: data._id,
+                            workoutName: data.name,
+                            startTime: new Date(data.startedAt).getTime(),
+                            exercises: data.exercises
+                                .filter((e: any) => e.exercise != null)
+                                .map((e: any) => ({
+                                    exercise: e.exercise,
+                                    sets: e.sets.length > 0 ? e.sets : [{ weight: 1, reps: 1, completed: false }]
+                                }))
+                        });
                     }
                 }
             } catch (error) {
@@ -102,11 +116,19 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
         };
         fetchWorkout();
 
-        const timer = setInterval(() => {
-            setElapsedTime((prev) => prev + 1);
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [workoutId, exercises.length, updateExercises]);
+        // Robust timer: calculate based on absolute start time
+        const updateTimer = () => {
+            if (startTime) {
+                const now = Date.now();
+                setElapsedTime(Math.floor((now - startTime) / 1000));
+            }
+        };
+
+        updateTimer();
+        const intervalId = setInterval(updateTimer, 1000);
+
+        return () => clearInterval(intervalId);
+    }, [workoutId, exercises.length, setWorkoutData, startTime]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -116,13 +138,23 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
 
     const addSet = (exerciseIndex: number) => {
         const newExercises = [...exercises];
-        const previousSet = newExercises[exerciseIndex].sets[newExercises[exerciseIndex].sets.length - 1];
+        const lastSet = newExercises[exerciseIndex].sets[newExercises[exerciseIndex].sets.length - 1];
         newExercises[exerciseIndex].sets.push({
-            weight: previousSet ? previousSet.weight : 0,
-            reps: previousSet ? previousSet.reps : 0,
-            completed: false
+            weight: lastSet?.weight,
+            reps: lastSet?.reps,
+            time: (lastSet as any)?.time,
+            completed: false,
         });
-        updateExercises(newExercises);
+        setStoreExercises(newExercises);
+    };
+
+    const moveExercise = (index: number, direction: 'up' | 'down') => {
+        const newExercises = [...exercises];
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= newExercises.length) return;
+
+        [newExercises[index], newExercises[newIndex]] = [newExercises[newIndex], newExercises[index]];
+        setStoreExercises(newExercises);
     };
 
     const addExerciseToWorkout = (exercise: any) => {
@@ -131,9 +163,9 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
         }
         const newExercises = [...exercises, {
             exercise: exercise,
-            sets: [{ weight: 0, reps: 0, completed: false }]
+            sets: [{ weight: 1, reps: 1, completed: false }]
         }];
-        updateExercises(newExercises);
+        setStoreExercises(newExercises);
         setOpen(false);
     };
 
@@ -143,14 +175,14 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
             ...newExercises[exerciseIndex].sets[setIndex],
             [field]: value
         };
-        updateExercises(newExercises);
+        setStoreExercises(newExercises);
         // Autosave? Could trigger debounced API call here
     };
 
     const toggleSetComplete = (exerciseIndex: number, setIndex: number) => {
         const newExercises = [...exercises];
         newExercises[exerciseIndex].sets[setIndex].completed = !newExercises[exerciseIndex].sets[setIndex].completed;
-        updateExercises(newExercises);
+        setStoreExercises(newExercises);
     };
 
     const handleFinishClick = () => {
@@ -220,8 +252,28 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
             {exercises.map((exerciseData, exerciseIndex) => (
                 <Card key={exerciseData.exercise?._id || exerciseIndex}>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex justify-between">
-                            {exerciseData.exercise?.name || 'Deleted Exercise'}
+                        <CardTitle className="text-lg flex justify-between items-center">
+                            <span>{exerciseData.exercise?.name || 'Deleted Exercise'}</span>
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8"
+                                    onClick={() => moveExercise(exerciseIndex, 'up')}
+                                    disabled={exerciseIndex === 0}
+                                >
+                                    <ChevronUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8"
+                                    onClick={() => moveExercise(exerciseIndex, 'down')}
+                                    disabled={exerciseIndex === exercises.length - 1}
+                                >
+                                    <ChevronDown className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </CardTitle>
                         <div className="flex gap-1">
                             {exerciseData.exercise?.muscleGroups?.map((m: string) => (
@@ -250,9 +302,9 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                                                         <Input
                                                             type="number"
                                                             className="text-center h-9"
-                                                            value={(set as any).time || ''}
-                                                            placeholder="0"
-                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'time', Number(e.target.value))}
+                                                            value={(set as any).time ?? ''}
+                                                            placeholder="1"
+                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'time', e.target.value === '' ? undefined : Number(e.target.value))}
                                                         />
                                                     </div>
                                                     <div className="col-span-2 flex justify-center">
@@ -286,9 +338,9 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                                                         <Input
                                                             type="number"
                                                             className="text-center h-9"
-                                                            value={set.reps || ''}
-                                                            placeholder="0"
-                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                                                            value={set.reps ?? ''}
+                                                            placeholder="1"
+                                                            onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', e.target.value === '' ? undefined : Number(e.target.value))}
                                                         />
                                                     </div>
                                                     <div className="col-span-2 flex justify-center">
@@ -322,18 +374,18 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                                                     <Input
                                                         type="number"
                                                         className="text-center h-9"
-                                                        value={set.weight || ''}
-                                                        placeholder="0"
-                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
+                                                        value={set.weight ?? ''}
+                                                        placeholder="1"
+                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', e.target.value === '' ? undefined : Number(e.target.value))}
                                                     />
                                                 </div>
                                                 <div className="col-span-3">
                                                     <Input
                                                         type="number"
                                                         className="text-center h-9"
-                                                        value={set.reps || ''}
-                                                        placeholder="0"
-                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                                                        value={set.reps ?? ''}
+                                                        placeholder="1"
+                                                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', e.target.value === '' ? undefined : Number(e.target.value))}
                                                     />
                                                 </div>
                                                 <div className="col-span-2 flex justify-center">
@@ -370,78 +422,94 @@ export default function ActiveWorkout({ workoutId }: { workoutId: string }) {
                         <DialogHeader>
                             <DialogTitle>Select Exercise</DialogTitle>
                         </DialogHeader>
-                        <div className="grid grid-cols-2 gap-2 mt-4">
+                        <div className="space-y-4 py-2">
                             <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Muscle Group</label>
-                                <select
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={selectedMuscle}
-                                    onChange={(e) => setSelectedMuscle(e.target.value)}
-                                >
-                                    <option value="">All Muscles</option>
-                                    <option value="Abdominals">Abdominals</option>
-                                    <option value="Biceps">Biceps</option>
-                                    <option value="Calves">Calves</option>
-                                    <option value="Cardio">Cardio</option>
-                                    <option value="Chest">Chest</option>
-                                    <option value="Core">Core</option>
-                                    <option value="Forearms">Forearms</option>
-                                    <option value="Full Body">Full Body</option>
-                                    <option value="Glutes">Glutes</option>
-                                    <option value="Hamstrings">Hamstrings</option>
-                                    <option value="Lats">Lats</option>
-                                    <option value="Lower Back">Lower Back</option>
-                                    <option value="Neck">Neck</option>
-                                    <option value="Obliques">Obliques</option>
-                                    <option value="Quadriceps">Quadriceps</option>
-                                    <option value="Shoulders">Shoulders</option>
-                                    <option value="Traps">Traps</option>
-                                    <option value="Triceps">Triceps</option>
-                                    <option value="Upper Back">Upper Back</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Equipment</label>
-                                <select
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={selectedEquipment}
-                                    onChange={(e) => setSelectedEquipment(e.target.value)}
-                                >
-                                    <option value="">All Equipment</option>
-                                    <option value="Ab Wheel">Ab Wheel</option>
-                                    <option value="Band">Band</option>
-                                    <option value="Barbell">Barbell</option>
-                                    <option value="Bodyweight">Bodyweight</option>
-                                    <option value="Box">Box</option>
-                                    <option value="Cable">Cable</option>
-                                    <option value="Dumbbell">Dumbbell</option>
-                                    <option value="EZ Bar">EZ Bar</option>
-                                    <option value="Kettlebell">Kettlebell</option>
-                                    <option value="Machine">Machine</option>
-                                    <option value="Medicine Ball">Medicine Ball</option>
-                                    <option value="Plate">Plate</option>
-                                    <option value="Rings">Rings</option>
-                                    <option value="Rope">Rope</option>
-                                    <option value="Suspension">Suspension</option>
-                                    <option value="Trap Bar">Trap Bar</option>
-                                    <option value="Weighted">Weighted</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="grid gap-2 mt-2">
-                            {allExercises.map((ex) => (
-                                <div
-                                    key={ex._id}
-                                    className="flex items-center justify-between p-2 border rounded hover:bg-accent cursor-pointer"
-                                    onClick={() => addExerciseToWorkout(ex)}
-                                >
-                                    <div>
-                                        <p className="font-medium text-foreground">{ex.name}</p>
-                                        <p className="text-xs text-muted-foreground">{ex.muscleGroups.join(', ')}</p>
-                                    </div>
-                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                <label className="text-xs text-muted-foreground font-medium">Search</label>
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search exercises..."
+                                        className="pl-9"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
                                 </div>
-                            ))}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Muscle Group</label>
+                                    <select
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={selectedMuscle}
+                                        onChange={(e) => setSelectedMuscle(e.target.value)}
+                                    >
+                                        <option value="">All Muscles</option>
+                                        <option value="Abdominals">Abdominals</option>
+                                        <option value="Biceps">Biceps</option>
+                                        <option value="Calves">Calves</option>
+                                        <option value="Cardio">Cardio</option>
+                                        <option value="Chest">Chest</option>
+                                        <option value="Core">Core</option>
+                                        <option value="Forearms">Forearms</option>
+                                        <option value="Full Body">Full Body</option>
+                                        <option value="Glutes">Glutes</option>
+                                        <option value="Hamstrings">Hamstrings</option>
+                                        <option value="Lats">Lats</option>
+                                        <option value="Lower Back">Lower Back</option>
+                                        <option value="Neck">Neck</option>
+                                        <option value="Obliques">Obliques</option>
+                                        <option value="Quadriceps">Quadriceps</option>
+                                        <option value="Shoulders">Shoulders</option>
+                                        <option value="Traps">Traps</option>
+                                        <option value="Triceps">Triceps</option>
+                                        <option value="Upper Back">Upper Back</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Equipment</label>
+                                    <select
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={selectedEquipment}
+                                        onChange={(e) => setSelectedEquipment(e.target.value)}
+                                    >
+                                        <option value="">All Equipment</option>
+                                        <option value="Ab Wheel">Ab Wheel</option>
+                                        <option value="Band">Band</option>
+                                        <option value="Barbell">Barbell</option>
+                                        <option value="Bodyweight">Bodyweight</option>
+                                        <option value="Box">Box</option>
+                                        <option value="Cable">Cable</option>
+                                        <option value="Dumbbell">Dumbbell</option>
+                                        <option value="EZ Bar">EZ Bar</option>
+                                        <option value="Kettlebell">Kettlebell</option>
+                                        <option value="Machine">Machine</option>
+                                        <option value="Medicine Ball">Medicine Ball</option>
+                                        <option value="Plate">Plate</option>
+                                        <option value="Rings">Rings</option>
+                                        <option value="Rope">Rope</option>
+                                        <option value="Suspension">Suspension</option>
+                                        <option value="Trap Bar">Trap Bar</option>
+                                        <option value="Weighted">Weighted</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="grid gap-2 mt-2 max-h-[300px] overflow-y-auto">
+                                {allExercises
+                                    .filter(ex => ex.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    .map((ex) => (
+                                        <div
+                                            key={ex._id}
+                                            className="flex items-center justify-between p-2 border rounded hover:bg-accent cursor-pointer"
+                                            onClick={() => addExerciseToWorkout(ex)}
+                                        >
+                                            <div>
+                                                <p className="font-medium text-foreground">{ex.name}</p>
+                                                <p className="text-xs text-muted-foreground">{ex.muscleGroups.join(', ')}</p>
+                                            </div>
+                                            <Plus className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                    ))}
+                            </div>
                         </div>
                     </DialogContent>
                 </Dialog>

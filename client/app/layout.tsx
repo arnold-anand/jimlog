@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import InstallPWA from '@/components/pwa/InstallPWA';
 import AuthGuard from '@/components/auth/AuthGuard';
+import FloatingWorkoutWidget from '@/components/layout/FloatingWorkoutWidget';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthGuard>
           {children}
+          <FloatingWorkoutWidget />
         </AuthGuard>
         <InstallPWA />
         <Toaster />

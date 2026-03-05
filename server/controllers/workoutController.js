@@ -217,6 +217,23 @@ const getWorkouts = async (req, res) => {
     }
 };
 
+// @desc    Get PR for an exercise
+// @route   GET /workouts/exercise/:exerciseId/pr
+// @access  Private
+const getExercisePR = async (req, res) => {
+    try {
+        const pr = await ExercisePR.findOne({
+            user: req.user._id,
+            exercise: req.params.exerciseId,
+        });
+
+        res.json(pr);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 module.exports = {
     startWorkout,
     getActiveWorkout,
@@ -224,4 +241,5 @@ module.exports = {
     deleteWorkout,
     endWorkout,
     getWorkouts,
+    getExercisePR,
 };

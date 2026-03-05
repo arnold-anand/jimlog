@@ -13,7 +13,7 @@ const importData = async () => {
     try {
         await Exercise.deleteMany();
 
-        await Exercise.insertMany(exercises);
+        await Exercise.insertMany(exercises.exercises);
 
         console.log('Data Imported!'.green.inverse);
         process.exit();

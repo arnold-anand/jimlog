@@ -27,9 +27,9 @@ interface Exercise {
 }
 
 interface RoutineExercise {
-    exerciseId: string; // Changed to match backend expectation, but we need exercise details for UI
-    name: string; // Helper for UI
-    plannedSets: number;
+    exerciseId: string;
+    name: string;
+    plannedSets: number | string;
     muscleGroups: string[];
     equipment: string;
 }
@@ -46,6 +46,7 @@ export default function CreateRoutinePage() {
     // Filtering states
     const [selectedMuscle, setSelectedMuscle] = useState<string>('');
     const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Fetch exercises function wrapping axios
     const fetchExercises = async () => {
@@ -73,7 +74,7 @@ export default function CreateRoutinePage() {
             {
                 exerciseId: exercise._id,
                 name: exercise.name,
-                plannedSets: 3,
+                plannedSets: '', // Empty for placeholder
                 muscleGroups: exercise.muscleGroups,
                 equipment: exercise.equipment
             },
@@ -89,7 +90,7 @@ export default function CreateRoutinePage() {
 
     const updateSets = (index: number, sets: string) => {
         const newExercises = [...selectedExercises];
-        newExercises[index].plannedSets = parseInt(sets) || 0;
+        newExercises[index].plannedSets = sets === '' ? '' : (parseInt(sets) || 0);
         setSelectedExercises(newExercises);
     };
 
@@ -104,7 +105,7 @@ export default function CreateRoutinePage() {
                 name,
                 exercises: selectedExercises.map((e, index) => ({
                     exercise: e.exerciseId,
-                    plannedSets: e.plannedSets,
+                    plannedSets: Number(e.plannedSets) || 1, // Default to 1 if empty
                     orderIndex: index,
                 })),
             };
@@ -148,78 +149,90 @@ export default function CreateRoutinePage() {
                                 <DialogHeader>
                                     <DialogTitle>Select Exercise</DialogTitle>
                                 </DialogHeader>
-                                <div className="grid grid-cols-2 gap-2 mt-4">
+                                <div className="space-y-4 py-4">
                                     <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Muscle Group</Label>
-                                        <select
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                            value={selectedMuscle}
-                                            onChange={(e) => setSelectedMuscle(e.target.value)}
-                                        >
-                                            <option value="">All Muscles</option>
-                                            <option value="Abdominals">Abdominals</option>
-                                            <option value="Biceps">Biceps</option>
-                                            <option value="Calves">Calves</option>
-                                            <option value="Cardio">Cardio</option>
-                                            <option value="Chest">Chest</option>
-                                            <option value="Core">Core</option>
-                                            <option value="Forearms">Forearms</option>
-                                            <option value="Full Body">Full Body</option>
-                                            <option value="Glutes">Glutes</option>
-                                            <option value="Hamstrings">Hamstrings</option>
-                                            <option value="Lats">Lats</option>
-                                            <option value="Lower Back">Lower Back</option>
-                                            <option value="Neck">Neck</option>
-                                            <option value="Obliques">Obliques</option>
-                                            <option value="Quadriceps">Quadriceps</option>
-                                            <option value="Shoulders">Shoulders</option>
-                                            <option value="Traps">Traps</option>
-                                            <option value="Triceps">Triceps</option>
-                                            <option value="Upper Back">Upper Back</option>
-                                        </select>
+                                        <Label className="text-xs text-muted-foreground">Search</Label>
+                                        <Input
+                                            placeholder="Search exercises..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
                                     </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Equipment</Label>
-                                        <select
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                            value={selectedEquipment}
-                                            onChange={(e) => setSelectedEquipment(e.target.value)}
-                                        >
-                                            <option value="">All Equipment</option>
-                                            <option value="Ab Wheel">Ab Wheel</option>
-                                            <option value="Band">Band</option>
-                                            <option value="Barbell">Barbell</option>
-                                            <option value="Bodyweight">Bodyweight</option>
-                                            <option value="Box">Box</option>
-                                            <option value="Cable">Cable</option>
-                                            <option value="Dumbbell">Dumbbell</option>
-                                            <option value="EZ Bar">EZ Bar</option>
-                                            <option value="Kettlebell">Kettlebell</option>
-                                            <option value="Machine">Machine</option>
-                                            <option value="Medicine Ball">Medicine Ball</option>
-                                            <option value="Plate">Plate</option>
-                                            <option value="Rings">Rings</option>
-                                            <option value="Rope">Rope</option>
-                                            <option value="Suspension">Suspension</option>
-                                            <option value="Trap Bar">Trap Bar</option>
-                                            <option value="Weighted">Weighted</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid gap-2 mt-2">
-                                    {exercises.map((ex) => (
-                                        <div
-                                            key={ex._id}
-                                            className="flex items-center justify-between p-2 border rounded hover:bg-accent cursor-pointer"
-                                            onClick={() => addExercise(ex)}
-                                        >
-                                            <div>
-                                                <p className="font-medium text-foreground">{ex.name}</p>
-                                                <p className="text-xs text-muted-foreground">{ex.muscleGroups.join(', ')}</p>
-                                            </div>
-                                            <Plus className="h-4 w-4 text-muted-foreground" />
+                                    <div className="grid grid-cols-2 gap-2 mt-4">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Muscle Group</Label>
+                                            <select
+                                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={selectedMuscle}
+                                                onChange={(e) => setSelectedMuscle(e.target.value)}
+                                            >
+                                                <option value="">All Muscles</option>
+                                                <option value="Abdominals">Abdominals</option>
+                                                <option value="Biceps">Biceps</option>
+                                                <option value="Calves">Calves</option>
+                                                <option value="Cardio">Cardio</option>
+                                                <option value="Chest">Chest</option>
+                                                <option value="Core">Core</option>
+                                                <option value="Forearms">Forearms</option>
+                                                <option value="Full Body">Full Body</option>
+                                                <option value="Glutes">Glutes</option>
+                                                <option value="Hamstrings">Hamstrings</option>
+                                                <option value="Lats">Lats</option>
+                                                <option value="Lower Back">Lower Back</option>
+                                                <option value="Neck">Neck</option>
+                                                <option value="Obliques">Obliques</option>
+                                                <option value="Quadriceps">Quadriceps</option>
+                                                <option value="Shoulders">Shoulders</option>
+                                                <option value="Traps">Traps</option>
+                                                <option value="Triceps">Triceps</option>
+                                                <option value="Upper Back">Upper Back</option>
+                                            </select>
                                         </div>
-                                    ))}
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Equipment</Label>
+                                            <select
+                                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={selectedEquipment}
+                                                onChange={(e) => setSelectedEquipment(e.target.value)}
+                                            >
+                                                <option value="">All Equipment</option>
+                                                <option value="Ab Wheel">Ab Wheel</option>
+                                                <option value="Band">Band</option>
+                                                <option value="Barbell">Barbell</option>
+                                                <option value="Bodyweight">Bodyweight</option>
+                                                <option value="Box">Box</option>
+                                                <option value="Cable">Cable</option>
+                                                <option value="Dumbbell">Dumbbell</option>
+                                                <option value="EZ Bar">EZ Bar</option>
+                                                <option value="Kettlebell">Kettlebell</option>
+                                                <option value="Machine">Machine</option>
+                                                <option value="Medicine Ball">Medicine Ball</option>
+                                                <option value="Plate">Plate</option>
+                                                <option value="Rings">Rings</option>
+                                                <option value="Rope">Rope</option>
+                                                <option value="Suspension">Suspension</option>
+                                                <option value="Trap Bar">Trap Bar</option>
+                                                <option value="Weighted">Weighted</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2 mt-2 max-h-[300px] overflow-y-auto">
+                                        {exercises
+                                            .filter(ex => ex.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            .map((ex) => (
+                                                <div
+                                                    key={ex._id}
+                                                    className="flex items-center justify-between p-2 border rounded hover:bg-accent cursor-pointer"
+                                                    onClick={() => addExercise(ex)}
+                                                >
+                                                    <div>
+                                                        <p className="font-medium text-foreground">{ex.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{ex.muscleGroups.join(', ')}</p>
+                                                    </div>
+                                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                                </div>
+                                            ))}
+                                    </div>
                                 </div>
                             </DialogContent>
                         </Dialog>
@@ -251,6 +264,7 @@ export default function CreateRoutinePage() {
                                                 type="number"
                                                 className="w-16 h-8"
                                                 value={ex.plannedSets}
+                                                placeholder="1"
                                                 onChange={(e) => updateSets(index, e.target.value)}
                                             />
                                         </div>

@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import Link from 'next/link';
 import { Calendar, Dumbbell, Play, Edit, Trash2 } from 'lucide-react';
+import WorkoutPreviewModal from '@/components/workout/WorkoutPreviewModal';
 
 interface RoutineProps {
     _id: string;
     name: string;
     exercises: {
         exercise: {
+            _id: string;
             name: string;
             muscleGroups: string[];
         };
@@ -28,6 +28,7 @@ interface RoutineProps {
 
 export default function RoutineCard({ routine, onDelete }: { routine: RoutineProps; onDelete: (id: string) => void }) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     const muscleGroups = Array.from(
@@ -43,11 +44,14 @@ export default function RoutineCard({ routine, onDelete }: { routine: RoutinePro
 
     return (
         <>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card
+                className="hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden group"
+                onClick={() => setPreviewOpen(true)}
+            >
                 <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                         <CardTitle className="text-lg">{routine.name}</CardTitle>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 relative z-10" onClick={(e) => e.stopPropagation()}>
                             <Button size="icon" variant="ghost" asChild>
                                 <Link href={`/routines/${routine._id}/edit`}>
                                     <Edit className="h-4 w-4 text-muted-foreground" />
@@ -82,12 +86,21 @@ export default function RoutineCard({ routine, onDelete }: { routine: RoutinePro
                             <span>{new Date(routine.updatedAt).toLocaleDateString()}</span>
                         </div>
                     </div>
+                    <div className="mt-4 text-xs text-orange-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        Tap to preview exercises →
+                    </div>
                 </CardContent>
             </Card>
 
+            <WorkoutPreviewModal
+                isOpen={previewOpen}
+                onClose={() => setPreviewOpen(false)}
+                routine={routine}
+            />
+
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent>
+                <DialogContent onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle>Delete Routine?</DialogTitle>
                     </DialogHeader>

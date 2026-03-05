@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface Set {
-    weight: number;
-    reps: number;
+    weight?: number;
+    reps?: number;
+    time?: number;
     completed: boolean;
 }
 
@@ -18,23 +19,27 @@ interface WorkoutExercise {
 
 interface WorkoutState {
     activeWorkoutId: string | null;
+    workoutName: string | null;
     startTime: number | null;
     exercises: WorkoutExercise[];
-    startWorkout: (id: string, exercises: any[]) => void;
+    startWorkout: (id: string, name: string, exercises: any[]) => void;
     endWorkout: () => void;
-    updateExercises: (exercises: WorkoutExercise[]) => void;
+    setStoreExercises: (exercises: WorkoutExercise[]) => void;
+    setWorkoutData: (data: Partial<WorkoutState>) => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>()(
     persist(
         (set) => ({
             activeWorkoutId: null,
+            workoutName: null,
             startTime: null,
             exercises: [],
-            startWorkout: (id, exercises) =>
-                set({ activeWorkoutId: id, startTime: Date.now(), exercises }),
-            endWorkout: () => set({ activeWorkoutId: null, startTime: null, exercises: [] }),
-            updateExercises: (exercises) => set({ exercises }),
+            startWorkout: (id, name, exercises) =>
+                set({ activeWorkoutId: id, workoutName: name, startTime: Date.now(), exercises }),
+            endWorkout: () => set({ activeWorkoutId: null, workoutName: null, startTime: null, exercises: [] }),
+            setStoreExercises: (exercises) => set({ exercises }),
+            setWorkoutData: (data) => set(data),
         }),
         {
             name: 'workout-storage',

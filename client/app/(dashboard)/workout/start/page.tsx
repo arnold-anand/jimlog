@@ -41,7 +41,7 @@ function StartWorkoutContent() {
 
       const { data } = await axios.post('/workouts', payload);
 
-      startWorkout(data._id, data.exercises);
+      startWorkout(data._id, data.name, data.exercises);
       router.replace(`/workout/${data._id}`);
     } catch (error) {
       router.push('/dashboard');
