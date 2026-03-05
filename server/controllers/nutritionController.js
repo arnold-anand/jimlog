@@ -207,4 +207,54 @@ const getDailyNutrition = asyncHandler(async (req, res) => {
     });
 });
 
-module.exports = { updateProfile, logMeal, getMealById, getDailyNutrition };
+// @desc    Get nutrition stats for a period
+// @route   GET /nutrition/stats?period=7|30|365
+// @access  Private
+const getNutritionStats = asyncHandler(async (req, res) => {
+    const period = parseInt(req.query.period) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - period);
+    startDate.setHours(0, 0, 0, 0);
+
+    const user = await User.findById(req.user._id).select('nutritionProfile');
+
+    // Aggregate meals by day
+    const dailyData = await Meal.aggregate([
+        {
+            $match: {
+                user: req.user._id,
+                date: { $gte: startDate }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    $dateToString: { format: period <= 30 ? '%Y-%m-%d' : '%Y-%m', date: '$date' }
+                },
+                calories: { $sum: '$calories' },
+                protein: { $sum: '$protein' },
+                carbs: { $sum: '$carbs' },
+                fat: { $sum: '$fat' },
+                fiber: { $sum: { $ifNull: ['$fiber', 0] } }
+            }
+        },
+        { $sort: { _id: 1 } }
+    ]);
+
+    // Map to { date, calories, protein, carbs, fat, fiber }
+    const timeline = dailyData.map(d => ({
+        date: d._id,
+        calories: Math.round(d.calories),
+        protein: Math.round(d.protein),
+        carbs: Math.round(d.carbs),
+        fat: Math.round(d.fat),
+        fiber: Math.round(d.fiber)
+    }));
+
+    res.json({
+        timeline,
+        targets: user ? user.nutritionProfile : null
+    });
+});
+
+module.exports = { updateProfile, logMeal, getMealById, getDailyNutrition, getNutritionStats };

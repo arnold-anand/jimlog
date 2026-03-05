@@ -139,9 +139,9 @@ export default function ProfilePage() {
                 )}
             </header>
 
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="max-w-2xl mx-auto">
                 {/* Stats Card */}
-                <Card className="md:col-span-2 border-primary/10 bg-card/50 backdrop-blur-sm">
+                <Card className="border-primary/10 bg-card/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle className="text-xl font-bold flex items-center gap-2">
                             <Activity className="h-5 w-5 text-primary" />
@@ -256,40 +256,6 @@ export default function ProfilePage() {
                                 </Button>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
-
-                {/* Calorie Card */}
-                <Card className="border-primary bg-primary/5 shadow-lg shadow-primary/10 border-2">
-                    <CardHeader>
-                        <CardTitle className="text-xl font-bold flex items-center gap-2">
-                            <Zap className="h-6 w-6 text-primary animate-pulse" />
-                            Daily Target
-                        </CardTitle>
-                        <CardDescription>Based on your profile</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center space-y-4">
-                        <div className="py-4">
-                            <span className="text-5xl font-black text-primary">
-                                {isEditing ? calculatedCalories : (user.nutritionProfile?.targetCalories || calculatedCalories || '—')}
-                            </span>
-                            <span className="text-sm font-bold text-muted-foreground block uppercase mt-1">kcal / day</span>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 py-4 border-t border-primary/10">
-                            <div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase">Protein</p>
-                                <p className="text-lg font-black text-orange-500">~{user.nutritionProfile?.targetProtein || 0}g</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase">Carbs</p>
-                                <p className="text-lg font-black text-blue-500">~{user.nutritionProfile?.targetCarbs || 0}g</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase">Fat</p>
-                                <p className="text-lg font-black text-yellow-500">~{user.nutritionProfile?.targetFat || 0}g</p>
-                            </div>
-                        </div>
                     </CardContent>
                 </Card>
             </div>
