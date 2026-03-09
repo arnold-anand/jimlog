@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Flame, Settings2, Zap, Dumbbell, Utensils } from 'lucide-react';
+import { useRef } from 'react';
 
 type AnalyticsView = 'workout' | 'food';
 
@@ -102,30 +103,41 @@ export default function StatsPage() {
     const loading = view === 'workout' ? loadingWorkout : loadingFood;
 
     // Swipe detection
-    const [touchStart, setTouchStart] = useState<number | null>(null);
-    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+    const touchStartRef = useRef<number | null>(null);
+    const touchEndRef = useRef<number | null>(null);
+    const touchStartYRef = useRef<number | null>(null);
+    const touchEndYRef = useRef<number | null>(null);
 
-    const minSwipeDistance = 70;
+    const minSwipeDistance = 50;
 
     const onTouchStart = (e: React.TouchEvent) => {
-        setTouchEnd(null);
-        setTouchStart(e.targetTouches[0].clientX);
+        touchEndRef.current = null;
+        touchEndYRef.current = null;
+        touchStartRef.current = e.targetTouches[0].clientX;
+        touchStartYRef.current = e.targetTouches[0].clientY;
     };
 
     const onTouchMove = (e: React.TouchEvent) => {
-        setTouchEnd(e.targetTouches[0].clientX);
+        touchEndRef.current = e.targetTouches[0].clientX;
+        touchEndYRef.current = e.targetTouches[0].clientY;
     };
 
     const onTouchEnd = () => {
-        if (!touchStart || !touchEnd) return;
-        const distance = touchStart - touchEnd;
-        const isLeftSwipe = distance > minSwipeDistance;
-        const isRightSwipe = distance < -minSwipeDistance;
+        if (!touchStartRef.current || !touchEndRef.current || !touchStartYRef.current || !touchEndYRef.current) return;
 
-        if (isLeftSwipe && view === 'workout') {
-            setView('food');
-        } else if (isRightSwipe && view === 'food') {
-            setView('workout');
+        const distanceX = touchStartRef.current - touchEndRef.current;
+        const distanceY = touchStartYRef.current - touchEndYRef.current;
+
+        const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY) * 2;
+        const isLeftSwipe = distanceX > minSwipeDistance;
+        const isRightSwipe = distanceX < -minSwipeDistance;
+
+        if (isHorizontal) {
+            if (isLeftSwipe && view === 'workout') {
+                setView('food');
+            } else if (isRightSwipe && view === 'food') {
+                setView('workout');
+            }
         }
     };
 
