@@ -140,3 +140,14 @@ svg:focus,
 svg *:focus {
   outline: none !important;
 }
+
+/* Mobile-specific touch optimizations */
+@layer base {
+  button, 
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+}

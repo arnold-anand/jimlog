@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Flame, Settings2, Zap, Dumbbell, Utensils } from 'lucide-react';
-import { useRef } from 'react';
 
 type AnalyticsView = 'workout' | 'food';
 
@@ -102,52 +101,8 @@ export default function StatsPage() {
 
     const loading = view === 'workout' ? loadingWorkout : loadingFood;
 
-    // Swipe detection
-    const touchStartRef = useRef<number | null>(null);
-    const touchEndRef = useRef<number | null>(null);
-    const touchStartYRef = useRef<number | null>(null);
-    const touchEndYRef = useRef<number | null>(null);
-
-    const minSwipeDistance = 50;
-
-    const onTouchStart = (e: React.TouchEvent) => {
-        touchEndRef.current = null;
-        touchEndYRef.current = null;
-        touchStartRef.current = e.targetTouches[0].clientX;
-        touchStartYRef.current = e.targetTouches[0].clientY;
-    };
-
-    const onTouchMove = (e: React.TouchEvent) => {
-        touchEndRef.current = e.targetTouches[0].clientX;
-        touchEndYRef.current = e.targetTouches[0].clientY;
-    };
-
-    const onTouchEnd = () => {
-        if (!touchStartRef.current || !touchEndRef.current || !touchStartYRef.current || !touchEndYRef.current) return;
-
-        const distanceX = touchStartRef.current - touchEndRef.current;
-        const distanceY = touchStartYRef.current - touchEndYRef.current;
-
-        const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY) * 2;
-        const isLeftSwipe = distanceX > minSwipeDistance;
-        const isRightSwipe = distanceX < -minSwipeDistance;
-
-        if (isHorizontal) {
-            if (isLeftSwipe && view === 'workout') {
-                setView('food');
-            } else if (isRightSwipe && view === 'food') {
-                setView('workout');
-            }
-        }
-    };
-
     return (
-        <div
-            className="space-y-6 max-w-4xl mx-auto touch-pan-y"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-        >
+        <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <Tabs value={view} onValueChange={(v) => setView(v as AnalyticsView)} className="w-full sm:w-auto">
                     <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-[#18181b] border-[#27272a]">
