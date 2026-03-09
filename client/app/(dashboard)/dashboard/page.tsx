@@ -6,8 +6,9 @@ import { useCacheStore } from '@/store/useCacheStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Dumbbell, Plus, Clock, Calendar } from 'lucide-react';
+import { Dumbbell, Plus, Clock, Calendar, Sparkles } from 'lucide-react';
 import axios from '@/lib/axios';
+import PersonalStatsModal from '@/components/profile/PersonalStatsModal';
 
 interface Workout {
     _id: string;
@@ -35,6 +36,14 @@ export default function DashboardPage() {
     const cached = getCache(CACHE_KEY);
     const [workouts, setWorkouts] = useState<Workout[]>(cached ?? []);
     const [loading, setLoading] = useState(!cached);
+    const [showStatsModal, setShowStatsModal] = useState(false);
+
+    useEffect(() => {
+        // Show modal if user has no nutrition profile set
+        if (user && (!user.nutritionProfile || !user.nutritionProfile.targetCalories)) {
+            setShowStatsModal(true);
+        }
+    }, [user]);
 
     useEffect(() => {
         if (cached) return; // Already have fresh data
@@ -145,6 +154,11 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <PersonalStatsModal
+                isOpen={showStatsModal}
+                onClose={() => setShowStatsModal(false)}
+            />
         </div>
     );
 }

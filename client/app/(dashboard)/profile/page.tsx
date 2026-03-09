@@ -59,11 +59,10 @@ export default function ProfilePage() {
         },
     });
 
-    const watchAllFields = form.watch();
+    const { weight, height, age, gender, activityLevel, goal } = form.watch();
 
     // Recalculate calories when inputs change
     useEffect(() => {
-        const { weight, height, age, gender, activityLevel, goal } = watchAllFields;
 
         if (weight && height && age) {
             // Mifflin-St Jeor Formula
@@ -79,7 +78,7 @@ export default function ProfilePage() {
 
             setCalculatedCalories(Math.round(target));
         }
-    }, [watchAllFields]);
+    }, [weight, height, age, gender, activityLevel, goal]);
 
     async function onSubmit(values: ProfileFormValues) {
         setLoading(true);

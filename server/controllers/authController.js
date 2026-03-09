@@ -164,10 +164,12 @@ const updateProfile = asyncHandler(async (req, res) => {
         user.name = req.body.name || user.name;
 
         if (req.body.nutritionProfile) {
+            // Ensure we don't overwrite if partial data is sent, but here we expect full profile
             user.nutritionProfile = {
-                ...user.nutritionProfile,
+                ...user.nutritionProfile?.toObject?.() || user.nutritionProfile || {},
                 ...req.body.nutritionProfile
             };
+            user.markModified('nutritionProfile');
         }
 
         const updatedUser = await user.save();

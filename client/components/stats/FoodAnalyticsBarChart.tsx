@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Calendar } from 'lucide-react';
 
 interface FoodData {
     date: string;
@@ -15,6 +17,8 @@ interface FoodData {
 
 interface FoodAnalyticsBarChartProps {
     data: FoodData[];
+    period: string;
+    onPeriodChange: (val: string) => void;
     targets?: {
         targetCalories: number;
         targetProtein: number;
@@ -25,7 +29,42 @@ interface FoodAnalyticsBarChartProps {
 
 type FilterKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
 
-export default function FoodAnalyticsBarChart({ data, targets }: FoodAnalyticsBarChartProps) {
+const formatXAxis = (tickItem: string) => {
+    if (tickItem.length === 7) {
+        const [year, month] = tickItem.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1);
+        return date.toLocaleDateString('default', { month: 'short' });
+    } else {
+        const [year, month, day] = tickItem.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('default', { day: 'numeric', month: 'short' });
+    }
+};
+
+const filterLabels: Record<FilterKey, string> = {
+    calories: 'Calories (kcal)',
+    protein: 'Protein (g)',
+    carbs: 'Carbs (g)',
+    fat: 'Fat (g)',
+    fiber: 'Fiber (g)',
+};
+
+const CustomTooltip = ({ active, payload, label, filter }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-[#18181b] border border-[#27272a] p-3 rounded-lg shadow-xl">
+                <p className="text-gray-400 text-sm mb-1">{formatXAxis(label)}</p>
+                <p className="text-white font-medium">
+                    <span className="text-green-500 mr-2">{filterLabels[filter as FilterKey]}:</span>
+                    {payload[0].value}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
+export default function FoodAnalyticsBarChart({ data, targets, period, onPeriodChange }: FoodAnalyticsBarChartProps) {
     const [filter, setFilter] = useState<FilterKey>('calories');
 
     const getTargetValue = () => {
@@ -44,40 +83,7 @@ export default function FoodAnalyticsBarChart({ data, targets }: FoodAnalyticsBa
 
     const targetValue = getTargetValue();
 
-    const formatXAxis = (tickItem: string) => {
-        if (tickItem.length === 7) {
-            const [year, month] = tickItem.split('-');
-            const date = new Date(parseInt(year), parseInt(month) - 1);
-            return date.toLocaleDateString('default', { month: 'short' });
-        } else {
-            const [year, month, day] = tickItem.split('-');
-            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            return date.toLocaleDateString('default', { day: 'numeric', month: 'short' });
-        }
-    };
 
-    const filterLabels: Record<FilterKey, string> = {
-        calories: 'Calories (kcal)',
-        protein: 'Protein (g)',
-        carbs: 'Carbs (g)',
-        fat: 'Fat (g)',
-        fiber: 'Fiber (g)',
-    };
-
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-[#18181b] border border-[#27272a] p-3 rounded-lg shadow-xl">
-                    <p className="text-gray-400 text-sm mb-1">{formatXAxis(label)}</p>
-                    <p className="text-white font-medium">
-                        <span className="text-green-500 mr-2">{filterLabels[filter]}:</span>
-                        {payload[0].value}
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
 
     const filters: { id: FilterKey; label: string }[] = [
         { id: 'calories', label: 'Calories' },
@@ -88,9 +94,25 @@ export default function FoodAnalyticsBarChart({ data, targets }: FoodAnalyticsBa
     ];
 
     return (
-        <Card className="bg-[#222] border-[#27272a] text-white">
-            <CardHeader className="pb-2 border-b border-[#27272a]/50">
-                <CardTitle className="text-lg font-normal">Nutrition Overview</CardTitle>
+        <Card className="bg-[#18181b] border-[#27272a] text-white shadow-xl rounded-2xl overflow-hidden border-2">
+            <CardHeader className="pb-4 border-b border-[#27272a]/50 bg-background/50 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
+                        <Calendar className="w-5 h-5" />
+                    </div>
+                    <CardTitle className="text-xl font-bold tracking-tight">Nutrition Overview</CardTitle>
+                </div>
+
+                <Select value={period} onValueChange={onPeriodChange}>
+                    <SelectTrigger className="w-[130px] bg-[#27272a] border-none h-9 text-xs font-bold uppercase tracking-wider">
+                        <SelectValue placeholder="Period" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#18181b] border-[#27272a]">
+                        <SelectItem value="7">Last 7 days</SelectItem>
+                        <SelectItem value="30">Last 30 days</SelectItem>
+                        <SelectItem value="365">This Year</SelectItem>
+                    </SelectContent>
+                </Select>
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="h-[300px] w-full" tabIndex={-1} style={{ outline: 'none' }}>
@@ -117,7 +139,7 @@ export default function FoodAnalyticsBarChart({ data, targets }: FoodAnalyticsBa
                                     tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : Math.round(value).toString()}
                                     domain={[0, (dataMax: number) => Math.ceil(Math.max(dataMax, targetValue || 0) * 1.1)]}
                                 />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#27272a', opacity: 0.4 }} />
+                                <Tooltip content={<CustomTooltip filter={filter} />} cursor={{ fill: '#27272a', opacity: 0.4 }} />
                                 <Bar
                                     dataKey={filter}
                                     fill="#22c55e"
